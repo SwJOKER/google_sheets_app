@@ -1,0 +1,22 @@
+FROM python:3.10.10-alpine
+
+# set work directory
+WORKDIR /usr/src/sheets_to_web
+
+# set environment variables
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+
+# install dependencies
+RUN apk update && apk add postgresql-dev gcc python3-dev musl-dev postgresql-client
+
+RUN pip install --upgrade pip
+COPY ./requirements.txt .
+RUN pip install -r requirements.txt
+
+COPY ./entrypoint.sh .
+# sed for fix windows style line endings
+RUN sed -i 's/\r$//g' ./entrypoint.sh
+RUN chmod +x ./entrypoint.sh
+
+ENTRYPOINT ["/usr/src/sheets_to_web/entrypoint.sh"]

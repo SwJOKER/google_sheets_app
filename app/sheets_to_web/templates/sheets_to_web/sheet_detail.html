@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+    {% if object %}
+        {% if object.available %}
+            {% if object.errors.all %}
+                {% for error in object.errors.all %}
+                    {{ error }}<br>
+                {% endfor %}
+            {% endif %}
+            {% for order in object.orders.all %}
+                {{ order.row_index }} {{ order.order_index }} {{ order.cost }} {{ order.cost_ruble }} {{ order.delivery_date|date:"d.m.Y" }} <br>
+            {% endfor %}
+        {% else %}
+            Google doc not available
+        {% endif %}
+    {% else %}
+        Will load soon
+    {% endif %}
+</body>
+</html>

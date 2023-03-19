@@ -1,0 +1,7 @@
+/app/celerybeat-schedule
+/venv/
+/.idea/
+*.pyc
+__pycache__
+.gitignore
+/app/sheets_to_web/migrations/
