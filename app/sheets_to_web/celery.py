@@ -176,6 +176,7 @@ class UpdateSheetDBTask(SheetTask):
     def have_updates_by_checksum(self):
         if self._md5 == self._sheet.md5:
             return False
+        self._sheet.errors.all().delete()
         self._sheet.md5 = self._md5
         return True
 
