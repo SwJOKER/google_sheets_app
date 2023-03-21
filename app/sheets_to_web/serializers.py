@@ -41,4 +41,3 @@ class SheetSerializer(serializers.ModelSerializer):
 
     def get_errors_count(self, instance):
         return instance.errors_count
-

@@ -2,14 +2,16 @@ version: '3.8'
 
 services:
   web:
-    build: ./app
-    command: python manage.py runserver 0.0.0.0:8000
+    build:
+      context: ./app
+      dockerfile: Dockerfile.prod
+    command: gunicorn app.wsgi:application --bind 0.0.0.0:8000
     volumes:
-      - ./app:/usr/src/sheets_to_web
-    ports:
-      - 8000:8000
+      - static_volume:/home/sheets_to_web_user/sheets_to_web/staticfiles
+    expose:
+      - 8000
     env_file:
-      - ./app/.env.dev
+      - ./app/.env.prod
     depends_on:
       - db
       - redis
@@ -22,25 +24,20 @@ services:
   celery:
     build:
       context: ./app
-      dockerfile: Dockerfile-celery
+      dockerfile: Dockerfile.prod
     command: celery -A sheets_to_web worker --loglevel=debug
     env_file:
-      - ./app/.env.dev
-    volumes:
-      - ./app:/usr/src/sheets_to_web
+      - ./app/.env.prod
     depends_on:
-      - web
       - db
       - redis
   celery-beat:
     build:
       context: ./app
-      dockerfile: Dockerfile-celery
+      dockerfile: Dockerfile.prod
     command: celery -A sheets_to_web beat -l debug --scheduler django_celery_beat.schedulers:DatabaseScheduler
     env_file:
-      - ./app/.env.dev
-    volumes:
-      - ./app:/usr/src/sheets_to_web
+      - ./app/.env.prod
     depends_on:
       - web
       - db
@@ -48,25 +45,31 @@ services:
   telegram:
     build:
       context: ./app
-      dockerfile: Dockerfile-celery
+      dockerfile: Dockerfile.prod
     command: python telegram_start.py
     env_file:
-      - ./app/.env.dev
-    volumes:
-      - ./app:/usr/src/sheets_to_web
+      - ./app/.env.prod
     depends_on:
-      - web
       - db
+      - redis
   db:
     image: postgres:latest
     volumes:
       - postgres_data:/var/lib/postgresql/data/
     expose:
       - 5432
-    environment:
-      - POSTGRES_USER=admin
-      - POSTGRES_PASSWORD=admin
-      - POSTGRES_DB=sheets_to_web
+    env_file:
+      - ./app/.env.prod.db
+  nginx:
+    build: ./nginx
+    volumes:
+      - static_volume:/home/sheets_to_web_user/sheets_to_web/staticfiles
+    ports:
+      - 1337:80
+    depends_on:
+      - web
+
 
 volumes:
   postgres_data:
+  static_volume:

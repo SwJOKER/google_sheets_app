@@ -1,6 +1,6 @@
+import logging
 import os
 from _decimal import Decimal
-from datetime import datetime
 
 from celery import signals
 import googleapiclient
@@ -12,10 +12,7 @@ from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.db.models import Prefetch
 from django.utils import timezone
-import pytz
 from .utils import get_sheet_records_md5, str_to_date, request_dollar_course, get_aware_update_time
-
-utc = pytz.UTC
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'app.settings')
 
@@ -34,14 +31,16 @@ def on_start(**kwargs):
 @app.on_after_configure.connect
 def setup_periodic_tasks(sender, **kwargs):
     sender.add_periodic_task(10.0, start_update_sheets.s(), name='Update data from sheets')
-    # at start of workday
-    sender.add_periodic_task(UpdateSheetDBTask)
 
-    sender.add_periodic_task(
-        crontab(hour=7, minute=0),
-        check_delivery_date.s(),
-        name='Delivery notifications'
-    )
+    if settings.DEBUG:
+        sender.add_periodic_task(10.0, check_delivery_date.s(), name='Delivery notifications debug mode')
+    else:
+        # at start of workday
+        sender.add_periodic_task(
+            crontab(hour=7, minute=0),
+            check_delivery_date.s(),
+            name='Delivery notifications'
+        )
     sender.add_periodic_task(
         crontab(hour=0, minute=1),
         get_dollar_course.s(force=True),
@@ -67,15 +66,19 @@ def check_delivery_date():
     expired_sheets_keys = list()
     prefetch_current_orders = Prefetch('orders', queryset=Order.objects.filter(archieved=False))
     sheets = Sheet.objects.filter(available=True).prefetch_related(prefetch_current_orders)
+    print('check start')
     for sheet in sheets:
+        print('Check delivery')
         # delivery status updates in telegram worker on sending notificates
         expired = [order.order_index for order in sheet.orders.all()
                    if order.delivery_date < timezone.now().date() and not order.delivery_expired]
         # Store pks of sheets and orders in redis cache for notificate
         if expired:
-            cache.set(f'expired_{sheet.key}', expired, 60*60*3)
+            print('find expired')
+            cache.set(f'expired_{sheet.key}', expired, 60 * 60 * 3)
             expired_sheets_keys.append(sheet.key)
-    cache.set('expired_sheets_keys', expired_sheets_keys, 60*60*3)
+    print('Send to telegram')
+    cache.set('expired_sheets_keys', expired_sheets_keys, 60 * 60 * 3)
 
 
 # calls when Sheet model object saved
@@ -92,7 +95,7 @@ def check_sheet_availability(self, sheet_key):
         sheet.save(from_task=True)
     except googleapiclient.errors.HttpError:
         sheet.delete()
-        print(f'Sheet is not available')
+        print('Sheet is not available')
 
 
 # store course to redis cache
@@ -104,7 +107,7 @@ def get_dollar_course(force=False):
         return cache.get('dollar_course')
     else:
         course = request_dollar_course()
-        cache.set('dollar_course', course, 60*60*24)
+        cache.set('dollar_course', course, 60 * 60 * 24)
         return course
 
 
@@ -132,7 +135,8 @@ class UpdateSheetDBTask(SheetTask):
         self._worksheet_records = self._worksheet.get_all_records()
         self._last_update_time = get_aware_update_time(self._spreadsheet)
         self._md5 = get_sheet_records_md5(self._worksheet_records)
-        self._sheet_data_dict = {tuple(r.values())[1]: tuple(r.values()) for r in self._worksheet_records if all(r.values())}
+        self._sheet_data_dict = {tuple(r.values())[1]: tuple(r.values()) for r in self._worksheet_records
+                                 if all(r.values())}
         self._actual_orders_id_list = list(self._sheet_data_dict.keys())
         actual_orders = Prefetch('orders', queryset=Order.objects.filter(order_index__in=self._actual_orders_id_list))
         self._sheet = Sheet.objects.filter(key=sheet_key).prefetch_related(actual_orders).first()
@@ -150,6 +154,7 @@ class UpdateSheetDBTask(SheetTask):
             self.create_orders()
             self.archieve_orders()
             self.save_errors()
+            self._sheet.save(from_task=True)
 
     # api updates update time too long. Checking only checksum is more faster.
     # if sheet is not too big checksum is better
@@ -171,6 +176,7 @@ class UpdateSheetDBTask(SheetTask):
     def have_updates_by_checksum(self):
         if self._md5 == self._sheet.md5:
             return False
+        self._sheet.md5 = self._md5
         return True
 
     def update_orders(self):
@@ -239,4 +245,3 @@ def update_sheet(self, sheet_key):
 @app.task(bind=True)
 def debug_task(self):
     print('Request: {}'.format(self.request))
-

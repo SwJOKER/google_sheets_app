@@ -55,7 +55,7 @@ async def cmd_stop(message: types.Message, state: FSMContext):
 async def check_user(message: types.Message, state: FSMContext):
     from .models import TelegramSubscriber, Sheet
 
-    if message.text.strip() == os.getenv('CLIENT_TELEGRAM_CODE'):
+    if message.text.strip() == os.getenv('TELEGRAM_CLIENT_CODE'):
         # m2m field provides posibility make bot cleverer. Now it not used
         sheets = await sync_to_async(Sheet.objects.all().only)('key')
         sheets_ids = list()
@@ -71,6 +71,11 @@ async def check_user(message: types.Message, state: FSMContext):
         await message.answer('Password incorrect. Try again from /start command')
 
 
+@router.message()
+async def send_instructions(message: types.Message):
+    await message.answer('For subscribe to sheets updates use /start command')
+
+
 async def send_notify_main():
     from .models import Sheet, Order, TelegramSubscriber
     from django.core.cache import cache
@@ -84,8 +89,8 @@ async def send_notify_main():
             async for sheet in sheets:
                 expired_orders_numbers = await sync_to_async(cache.get)(f'expired_{sheet.key}')
                 expired_orders_full.extend(expired_orders_numbers)
-               # There is a way to make clever bot with capacity choosing sheets for subscribe
-               # async for subscriber in sheet.subscribers.all():
+    # There is a way to make clever bot with capacity choosing sheets for subscribe
+    # async for subscriber in sheet.subscribers.all():
                 async for subscriber in TelegramSubscriber.objects.all():
                     href = f'<a href="https://docs.google.com/spreadsheets/d/{sheet.key}/">{sheet.name}</a>'
                     text = f'In Google Sheet:\n' \
@@ -121,5 +126,3 @@ def start():
     loop.create_task(send_notify_main())
     loop.create_task(telegram_main())
     loop.run_forever()
-
-

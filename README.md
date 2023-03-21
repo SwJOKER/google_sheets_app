@@ -36,8 +36,6 @@ In that case you need restart celery-beat service, when all migrates will be don
 docker-compose restart celery-beat
 ```
 
-
-
 ## Sheets registration
 For register new sheet you can just put google sheet's key in URL.
 ```
@@ -65,6 +63,9 @@ TELEGRAM_CLIENT_CODE=foo
 ```
 Could be modified in .env.dev
 
+By default delivery date checking scheduled on 7 AM. In DEBUG mode it repeats every 10 seconds.
+Notificate sends once for each expired delivery order.
+
 ## Api 
 There is API for react app which i did not have time to do.
 Its simple REST app. 
@@ -81,4 +82,21 @@ For full information about sheet with orders you need add variable full=1 to URL
 http://localhost:8000/api/sheets/<key>/?full=1
 
 http://localhost:8000/api/sheets/?full=1
+```
+
+## Start production
+Start container from docker-compose.prod.yml
+```
+docker-compose -f docker-compose.prod.yml up -d --build
+```
+After start needed do migrations and collect static files
+```
+docker-compose exec web python manage.py makemigrations
+docker-compose exec web python manage.py makemigrations sheets_to_web
+docker-compose exec web python manage.py migrate
+docker-compose exec web python manage.py collectstatic
+```
+After this restart celery-beat worker
+```
+docker-compose restart celery-beat
 ```

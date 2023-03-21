@@ -1,0 +1,76 @@
+###########
+# BUILDER #
+###########
+
+# pull official base image
+FROM python:3.10.10-alpine as builder
+
+# set work directory
+WORKDIR /usr/src/sheets_to_web
+
+# set environment variables
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+
+# install psycopg2 dependencies
+RUN apk update && apk add postgresql-dev gcc python3-dev musl-dev postgresql-client
+
+# linter
+RUN pip install --upgrade pip
+RUN pip install flake8==6.0.0
+COPY . .
+
+RUN flake8 .
+
+# install dependencies, put in wheels dir
+COPY ./requirements.txt .
+RUN pip wheel --no-cache-dir --no-deps --wheel-dir /usr/src/sheets_to_web/wheels -r requirements.txt
+
+
+#########
+# FINAL #
+#########
+
+# pull official base image
+FROM python:3.10.10-alpine
+
+# create directory
+RUN mkdir -p /home/sheets_to_web
+
+# create the app user
+# -G - group
+# -S - Create a system user|group
+RUN addgroup -S sheets_to_web && adduser -S sheets_to_web_user -G sheets_to_web
+
+# create the appropriate directories
+ENV HOME=/home/sheets_to_web
+ENV APP_HOME=/home/sheets_to_web_user/sheets_to_web
+RUN mkdir $APP_HOME
+RUN mkdir $APP_HOME/staticfiles
+WORKDIR $APP_HOME
+
+
+# install dependencies
+# libpq for postgres
+RUN apk update && apk add libpq
+COPY --from=builder /usr/src/sheets_to_web/wheels /wheels
+COPY --from=builder /usr/src/sheets_to_web/requirements.txt .
+RUN pip install --no-cache /wheels/*
+
+# copy entrypoint.prod.sh
+COPY ./entrypoint.prod.sh .
+RUN sed -i 's/\r$//g'  $APP_HOME/entrypoint.prod.sh
+RUN chmod +x  $APP_HOME/entrypoint.prod.sh
+
+# copy project
+COPY . $APP_HOME
+
+# chown all the files to the app user
+# -R - recursive
+RUN chown -R sheets_to_web_user:sheets_to_web $APP_HOME
+
+# change to the app user
+USER sheets_to_web_user
+
+# run entrypoint.prod.sh
+ENTRYPOINT ["/home/sheets_to_web_user/sheets_to_web/entrypoint.prod.sh"]

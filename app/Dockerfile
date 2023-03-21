@@ -8,7 +8,7 @@ ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
 # install dependencies
-RUN apk update && apk add postgresql-dev gcc python3-dev musl-dev postgresql-client
+RUN apk update && apk add postgresql-dev gcc python3-dev musl-dev postgresql-client curl
 
 RUN pip install --upgrade pip
 COPY ./requirements.txt .
