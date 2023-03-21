@@ -5,10 +5,17 @@ import requests
 import xml.etree.ElementTree as ET
 from decimal import Decimal
 
+from django.utils import timezone
+from pygsheets import Spreadsheet
 
-def get_sheet_md5(sheet):
-    records = sheet.get_all_records()
+
+def get_sheet_records_md5(records):
     return hashlib.md5(json.dumps(records).encode('UTF-8')).hexdigest()
+
+
+def get_aware_update_time(sheet: Spreadsheet):
+    return timezone.datetime.fromisoformat(sheet.updated[:-1]).astimezone(timezone.get_default_timezone())
+    # timezone.datetime.fromisoformat(sheet.updated[:-1])
 
 
 def str_to_date(value):

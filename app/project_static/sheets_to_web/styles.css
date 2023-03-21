@@ -1,0 +1,59 @@
+:root {
+    font-family: "Roboto","Open Sans",helvetica,arial,sans-serif;
+}
+
+header {
+    grid-area: header;
+    background: #fff;
+    height: 80px;
+    line-height: 80px;
+    text-align: left;
+    border-bottom: solid 1px silver;
+}
+
+.container {
+    display: grid;
+    grid-template-areas:
+        "orders";
+    grid-gap: 30px;
+    margin-top: 15px;
+    margin-bottom: 15px;
+}
+
+.orders {
+    display: grid;
+    row-gap: 25px;
+}
+
+.total {
+    height: 250px;
+    width: 500px;
+    border: solid 1px silver;
+    margin: auto;
+}
+
+.total > div:not(:first-of-type) {
+    background-color: white;
+    height: 75%;
+    font-size: 90px;
+    text-align: center;
+    line-height: 170px;
+    text-color: black;
+}
+
+.total > div:first-of-type {
+    background-color: black;
+    height: 25%;
+    font-size: 50px;
+    text-align: center;
+    text-color: white;
+}
+
+table, .errors  {
+    text-align: center;
+    width: 40%;
+    margin: auto;
+}
+
+
+

@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}<title>Sheets</title>{% endblock %}
+{% block content %}
+    <div class="list">
+        <table>
+            {% for sheet in sheets %}
+            <tr>
+                <td>
+                    <a href="{% url 'sheet_detail' sheet.key %}">{{ sheet.name }}</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+{% endblock %}

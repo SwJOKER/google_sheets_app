@@ -41,6 +41,7 @@ services:
     volumes:
       - ./app:/usr/src/sheets_to_web
     depends_on:
+      - web
       - db
       - redis
   telegram:

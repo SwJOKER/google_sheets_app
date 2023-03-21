@@ -9,11 +9,11 @@ class Order(models.Model):
     row_index = models.IntegerField('Row index', null=False)
     order_index = models.IntegerField('Order index', null=False)
     cost = models.DecimalField('Dollar cost', decimal_places=2, max_digits=12, null=False)
-    # I think this field is excess. No sense to store it in DB, considering that we have currency courses api.
-    # And keep it in radis cache, or just as var
     cost_ruble = models.DecimalField('Ruble cost', decimal_places=2, max_digits=12, null=False)
     delivery_date = models.DateField('Delivery date', null=False)
     delivery_expired = models.BooleanField(null=False, default=False)
+    create_date = models.DateField('Create date', auto_now=True)
+    archieved = models.BooleanField(null=False, default=False)
     sheet = models.ForeignKey('Sheet', related_name='orders', null=False, on_delete=models.CASCADE)
 
     def get_vals_tuple(self):
@@ -34,6 +34,7 @@ class Sheet(models.Model):
                            primary_key=True)
     available = models.BooleanField(null=True, default=None)
     md5 = models.CharField(null=True, max_length=32, default=None)
+    update_datetime = models.DateTimeField(verbose_name='last update time', null=True)
 
     def save(self, from_task=None, *args, **kwargs):
         super().save(*args, **kwargs)

@@ -1,25 +1,47 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Title</title>
-</head>
-<body>
-    {% if object %}
-        {% if object.available %}
-            {% if object.errors.all %}
-                {% for error in object.errors.all %}
-                    {{ error }}<br>
-                {% endfor %}
-            {% endif %}
-            {% for order in object.orders.all %}
-                {{ order.row_index }} {{ order.order_index }} {{ order.cost }} {{ order.cost_ruble }} {{ order.delivery_date|date:"d.m.Y" }} <br>
-            {% endfor %}
-        {% else %}
-            Google doc not available
-        {% endif %}
-    {% else %}
-        Will load soon
-    {% endif %}
-</body>
-</html>
+{% extends 'base.html' %}
+{% block title %}<title>MailTasker - Главная</title>{% endblock %}
+{% block content %}
+    {% load static %}
+
+    <div class="container">
+        <div class="orders">
+            <div class="total">
+                <div>Total</div>
+                <div id="total_cost">{{object.total_usd}}</div>
+            </div>
+            <div class="sheet">
+                {% if object %}
+                    {% if object.available %}
+                        {% if object.errors_count %}
+                            <div class="errors">
+                                Unable rows: {{ object.errors_count }}
+                            </div>
+                        {% endif %}
+                        <table>
+                            <tr>
+                                <td>№</td>
+                                <td>Order №</td>
+                                <td>USD Cost</td>
+                                <td>Ruble Cost</td>
+                                <td>Delivery date</td>
+                            </tr>
+                        {% for order in object.orders.all %}
+                            <tr id = '{{ order.order_index }}'>
+                                <td class="row_index">{{ order.row_index }}</td>
+                                <td class="order_index">{{ order.order_index }}</td>
+                                <td class="cost">{{ order.cost }}</td>
+                                <td class="cost_ruble">{{ order.cost_ruble }}</td>
+                                <td class="delivery_date">{{ order.delivery_date|date:"d.m.Y" }}</td>
+                            </tr>
+                        {% endfor %}
+                        </table>
+                    {% else %}
+                        Google doc not available
+                    {% endif %}
+                {% else %}
+                    Will load soon
+                {% endif %}
+            </div>
+        </div>
+    </div>
+{% endblock %}
