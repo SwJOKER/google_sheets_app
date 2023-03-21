@@ -3,5 +3,5 @@
 /.idea/
 *.pyc
 __pycache__
-.gitignore
 /app/sheets_to_web/migrations/
+/app/service-key.json
