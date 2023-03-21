@@ -27,14 +27,16 @@ TELEGRAM_BOT_TOKEN=xxx
 ```
 After that you can run docker-container from project directory
 ```
-docker-compose up -d --build
+docker-composeв up -d --build
 ```
-## Warning
+## Warnings
 On first start celery-beat service can start working before migrations.
 In that case you need restart celery-beat service, when all migrates will be done
 ```
 docker-compose restart celery-beat
 ```
+
+
 
 ## Sheets registration
 For register new sheet you can just put google sheet's key in URL.
@@ -53,9 +55,13 @@ For subscribe for notifications you need send start command in chat with bot.
 ```
 /start
 ```
+For unsubscribe:
+```
+/stop
+```
 It will ask secret word. By default:
 ```
-foo
+TELEGRAM_CLIENT_CODE=foo
 ```
 Could be modified in .env.dev
 

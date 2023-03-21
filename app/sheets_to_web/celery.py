@@ -208,14 +208,14 @@ class UpdateSheetDBTask(SheetTask):
             kwargs_for_order = dict(zip(fields_in_tuple, new_order_data))
             # convert date string in tuple to date format
             kwargs_for_order['delivery_date'] = str_to_date(new_order_data[3])
-            kwargs_for_order['sheet'] = self.sheet
+            kwargs_for_order['sheet'] = self._sheet
             cost_ruble = Decimal(new_order_data[2] * self._dollar_course).quantize(Decimal('1.00'))
             new_order = Order(cost_ruble=cost_ruble, **kwargs_for_order)
             try:
                 new_order.clean_fields()
                 create_objs.append(new_order)
             except ValidationError as e:
-                self._errors_objects.append(SheetError(sheet=self.sheet, error_text=e.messages))
+                self._errors_objects.append(SheetError(sheet=self._sheet, error_text=e.messages))
         Order.objects.bulk_create(create_objs)
 
     def archieve_orders(self):
