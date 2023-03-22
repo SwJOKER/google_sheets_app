@@ -29,6 +29,7 @@ After that you can run docker-container from project directory
 ```
 docker-composeв up -d --build
 ```
+
 ## Warnings
 On first start celery-beat service can start working before migrations.
 In that case you need restart celery-beat service, when all migrates will be done
@@ -38,12 +39,16 @@ docker-compose restart celery-beat
 
 ## Sheets registration
 For register new sheet you can just put google sheet's key in URL.
+Document example:
 ```
-# like 
-http://localhost:8000/sheet/1MuMERz8I1Qd8Ip4DB8UrbPD4fgdSbmE-YVMPistsqkE/
+https://docs.google.com/spreadsheets/d/13nUkBwlXYGmDmYUkkhAgkA_v8mxeh9H9ePp5NkKiDXY
 
-# In this case key:
-1MuMERz8I1Qd8Ip4DB8UrbPD4fgdSbmE-YVMPistsqkE
+# like 
+http://localhost:8000/sheet/13nUkBwlXYGmDmYUkkhAgkA_v8mxeh9H9ePp5NkKiDXY/
+
+# In this case key is:
+13nUkBwlXYGmDmYUkkhAgkA_v8mxeh9H9ePp5NkKiDXY
+
 ```
 Key will checked for length. If not permissions to access it will not be created. 
 If all ok you can reload page little bit later and see your doc.
