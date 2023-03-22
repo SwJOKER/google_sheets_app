@@ -1,64 +1,154 @@
-    async function status_request() {
+    async function statusRequest() {
         let url = SHEET_API_URL + SHEET_KEY
-        let response = await fetch(url)
-        if (response.status === 200) {
-            let sheet = await response.json()
-            return sheet
+        try {
+            let response = await fetch(url)
+            if (response.status === 200) {
+                let sheet = await response.json()
+                return sheet
+            }
+        } catch(e) {
+            console.error('Error fetch status', e);
+            await Promise.all([ Promise.resolve(), timeout(15000) ]);
         }
+
     }
 
-    async function check_status() {
-        console.log('check')
+    async function checkStatus() {
         await new Promise(resolve => setTimeout( () => {
-            init_update_page()
+            initUpdatePage()
         }, 5000))
     }
 
-    async function get_orders() {
+    async function getFullSheet() {
         let url = SHEET_API_URL + SHEET_KEY + '?full=1'
         let response = await fetch(url)
-        if (response.status === 200) {
-            let sheet = await response.json()
-            let orders = sheet['orders']
-            return orders
+        try {
+            if (response.status === 200) {
+                let sheet = await response.json()
+                return sheet
+            }
+        } catch(e) {
+            console.error('Error fetch full info', e);
+            await Promise.all([ Promise.resolve(), timeout(15000) ]);
         }
     }
 
-    async function update_page(){
-        let orders = await get_orders()
-        let current_orders = []
-        let new_orders = []
-        $('table').find('tr').each(function(){ if (this.id) {current_orders.push(this.id)}})
-        console.log('start')
+    async function updatePage(){
+        console.log('udate')
+        const sheet = await getFullSheet()
+        let currentOrders = []
+        let actualOrders = {}
+        let orders = sheet.orders
+        // defined in template
+        TOTAL_USD = sheet.total_usd.toFixed(2)
+        TOTAL_RUBLE = sheet.total_ruble.toFixed(2)
+        $('table').find('tr:not(:first-of-type)').each(function(){ if (this.id) {currentOrders.push(Number(this.id))}})
+
         orders.forEach(function(order){
-            console.log(order['raw_index'])
-            let order_index = order['order_index']
-            let elem = $('table').find(`tr[id=${order_index}]`).find('td').each(function(){
-              //  console.log(this.id)
-                if (this.id == 'raw_index') { this.innerHTML = order[this.id]}
-                if (this.id == 'cost') { this.innerHTML = order[this.id]}
-                if (this.id == 'cost_ruble') { this.innerHTML = order[this.id]}
-                if (this.id == 'delivery_date') { this.innerHTML = order[this.id]}
+            let orderIndex = order.order_index
+
+            actualOrders[orderIndex] = order
+            let elem = $('table').find(`tr[id=${orderIndex}]`).find('td').each(function(){
+                let newValue = order[this.className]
+                if (this.innerHTML != newValue) {
+                    if (this.className == 'row_index') { this.innerHTML = newValue };
+                    if (this.className == 'cost') { this.innerHTML = parseFloat(newValue).toFixed(2) };
+                    if (this.className == 'cost_ruble') { this.innerHTML = parseFloat(newValue).toFixed(2) };
+                    if (this.className == 'delivery_date') { this.innerHTML = new Date(newValue).toLocaleDateString() }
+                    };
             })
         })
+        let newOrders = Object.keys(actualOrders).filter(key => !(currentOrders.includes(Number(key))))
+                                 .reduce((cur, key) => {return Object.assign(cur, { [key]: actualOrders[key]})}, {});
+        let deletedOrders = currentOrders.filter(id => !(Object.keys(actualOrders).includes(id.toString())))
+        deletedOrders.forEach(function(id){
+            $('table').find(`tr[id=${id}]`).remove()
+        })
+        Object.keys(newOrders).forEach(function(id){
+            order = newOrders[id]
+            let clone = $($('template').html());
+            clone.attr('id', order.order_index)
+            clone.children('.row_index')[0].innerHTML = order.row_index
+            clone.children('.order_index')[0].innerHTML = order.order_index
+            clone.children('.cost')[0].innerHTML = order.cost
+            clone.children('.cost_ruble')[0].innerHTML = order.cost_ruble
+            clone.children('.delivery_date')[0].innerHTML = new Date(order.delivery_date).toLocaleDateString()
+            $('tbody').append(clone)
+        })
+
+        $('tbody').find('tr:not(:first-of-type').sort(function(a, b) {
+            return parseInt($('td:first',a).text()) - parseInt($('td:first',b).text())
+        }).appendTo($('tbody'));
+   }
+
+    async function updateData(lastMD5) {
+        const { md5 } = await statusRequest();
+
+        if (lastMD5 != md5) {
+            await updatePage();
+        }
+
+        return md5;
     }
 
-    async function init_update_page() {
-        console.log('нууу')
-        let sheet = await status_request()
-        md5 = sheet['md5']
-        if (md5 == current_sheet_md5) {
-            await update_page()
+    function getCookie(name) {
+          let matches = document.cookie.match(new RegExp(
+            "(?:^|; )" + name.replace(/([\.$?*|{}\(\)\[\]\\\/\+^])/g, '\\$1') + "=([^;]*)"
+          ));
+          return matches ? decodeURIComponent(matches[1]) : undefined;
+    }
+
+    function init_valute() {
+        let saved_valute_settings = getCookie('valute')
+        if (saved_valute_settings == undefined) {
+            document.cookie = "valute=usd"
+            saved_valute_settings = getCookie('valute')
+        }
+        if (saved_valute_settings == 'usd') {
+            total_cost.innerHTML = '$' + TOTAL_USD
+            settings.innerHTML = '$'
+        } else {
+            settings.innerHTML = '₽'
+            total_cost.innerHTML = '₽' + TOTAL_RUBLE
         }
     }
 
-    async function start(){
-        await StatusRequest()}
+    async function changeValute() {
+        let saved_valute_settings = getCookie('valute')
 
-window.addEventListener('load', (event) => {
-   // let orders_on_page = $()
-  //  check_status();
-})
+        if (saved_valute_settings == 'usd'){
+            document.cookie = "valute=ruble"
+            settings.innerHTML = '₽'
+            total_cost.innerHTML = '₽' + TOTAL_RUBLE
+        }
+        else{
+            document.cookie = "valute=usd"
+            settings.innerHTML = '$'
+            total_cost.innerHTML = '$' + TOTAL_USD
+        }
+    }
+
+    function timeout(ms) {
+        return new Promise(resolve => { setTimeout(resolve, ms); });
+    }
+
+    async function runUpdateTask() {
+        let lastMD5 = null;
+        while(true) {
+            try {
+                const [md5] = await Promise.all([ updateData(lastMD5), timeout(2000) ]);
+                lastMD5 = md5;
+                console.log('start')
+            } catch(e) {
+                console.error('Somthing went wrong', e);
+            }
+        }
+    }
+
+window.addEventListener('DOMContentLoaded', () => init_valute());
+window.addEventListener('DOMContentLoaded', () => settings.addEventListener( "click" , () => changeValute()));
+window.addEventListener('DOMContentLoaded', () => runUpdateTask());
+
 
 
 

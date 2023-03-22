@@ -59,8 +59,8 @@ class SheetViewSet(viewsets.ReadOnlyModelViewSet):
         if status_kwarg:
             prefetch_orders = Prefetch('orders', queryset=Order.objects.filter(archieved=False).order_by('row_index'))
             queryset = Sheet.objects.prefetch_related(prefetch_orders, 'errors') \
-                .annotate(total_usd=Sum('orders__cost'))\
-                .annotate(total_ruble=Sum('orders__cost_ruble'))\
+                .annotate(total_usd=Sum('orders__cost', filter=Q(orders__archieved=False))) \
+                .annotate(total_ruble=Sum('orders__cost_ruble', filter=Q(orders__archieved=False))) \
                 .annotate(errors_count=Count('errors', distinct=True))
         else:
             queryset = Sheet.objects.all()

@@ -1,13 +1,29 @@
 {% extends 'base.html' %}
-{% block title %}<title>MailTasker - Главная</title>{% endblock %}
+{% block title %}<title>Sheet detail</title>{% endblock %}
 {% block content %}
     {% load static %}
-
+    <template>
+        <tr id='id'>
+            <td class="row_index">{{ order.row_index }}</td>
+            <td class="order_index">{{ order.order_index }}</td>
+            <td class="cost">{{ order.cost }}</td>
+            <td class="cost_ruble">{{ order.cost_ruble }}</td>
+            <td class="delivery_date">{{ order.delivery_date|date:"d.m.Y" }}</td>
+        </tr>
+    </template>
+    <script type="text/javascript">
+        let SHEET_API_URL = '{{ API_URL }}'
+        let SHEET_KEY = '{{ object.key }}'
+        let TOTAL_USD = '{{ object.total_usd }}'
+        let TOTAL_RUBLE = '{{ object.total_ruble }}'
+    </script>
+    <script src="{% static 'sheets_to_web/api_requests.js' %}"></script>
     <div class="container">
         <div class="orders">
             <div class="total">
                 <div>Total</div>
-                <div id="total_cost">{{object.total_usd}}</div>
+                <div id="total_cost">${{object.total_usd}}</div>
+                <div id="settings">$</div>
             </div>
             <div class="sheet">
                 {% if object %}

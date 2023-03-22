@@ -63,7 +63,7 @@ TELEGRAM_CLIENT_CODE=foo
 ```
 Could be modified in .env.dev
 
-By default delivery date checking scheduled on 7 AM. In DEBUG mode it repeats every 10 seconds.
+By default delivery date checking scheduled on 7 AM. In DEBUG mode it repeats every 30 seconds.
 Notificate sends once for each expired delivery order.
 
 ## Api 

@@ -33,7 +33,7 @@ def setup_periodic_tasks(sender, **kwargs):
     sender.add_periodic_task(10.0, start_update_sheets.s(), name='Update data from sheets')
 
     if settings.DEBUG:
-        sender.add_periodic_task(10.0, check_delivery_date.s(), name='Delivery notifications debug mode')
+        sender.add_periodic_task(30.0, check_delivery_date.s(), name='Delivery notifications debug mode')
     else:
         # at start of workday
         sender.add_periodic_task(
@@ -66,18 +66,14 @@ def check_delivery_date():
     expired_sheets_keys = list()
     prefetch_current_orders = Prefetch('orders', queryset=Order.objects.filter(archieved=False))
     sheets = Sheet.objects.filter(available=True).prefetch_related(prefetch_current_orders)
-    print('check start')
     for sheet in sheets:
-        print('Check delivery')
         # delivery status updates in telegram worker on sending notificates
         expired = [order.order_index for order in sheet.orders.all()
                    if order.delivery_date < timezone.now().date() and not order.delivery_expired]
         # Store pks of sheets and orders in redis cache for notificate
         if expired:
-            print('find expired')
             cache.set(f'expired_{sheet.key}', expired, 60 * 60 * 3)
             expired_sheets_keys.append(sheet.key)
-    print('Send to telegram')
     cache.set('expired_sheets_keys', expired_sheets_keys, 60 * 60 * 3)
 
 
@@ -130,7 +126,10 @@ class UpdateSheetDBTask(SheetTask):
         from .models import Sheet, Order
 
         self._dollar_course = get_dollar_course.s()()
-        self._spreadsheet = self.client.open_by_key(sheet_key)
+        try:
+            self._spreadsheet = self.client.open_by_key(sheet_key)
+        except googleapiclient.errors.HttpError as e:
+            print(e)
         self._worksheet = self._spreadsheet.sheet1
         self._worksheet_records = self._worksheet.get_all_records()
         self._last_update_time = get_aware_update_time(self._spreadsheet)

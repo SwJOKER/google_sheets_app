@@ -27,9 +27,11 @@ header {
 
 .total {
     height: 250px;
-    width: 500px;
+    width: 700px;
     border: solid 1px silver;
     margin: auto;
+    position: relative;
+    color: white;
 }
 
 .total > div:not(:first-of-type) {
@@ -38,7 +40,7 @@ header {
     font-size: 90px;
     text-align: center;
     line-height: 170px;
-    text-color: black;
+    color: black
 }
 
 .total > div:first-of-type {
@@ -47,6 +49,7 @@ header {
     font-size: 50px;
     text-align: center;
     text-color: white;
+    line-height: 60px;
 }
 
 table, .errors  {
@@ -55,5 +58,30 @@ table, .errors  {
     margin: auto;
 }
 
+table tr {
+        background-color: white;
+}
+
+#settings {
+    position: absolute;
+    border: 1px solid silver;
+    background-color:black;
+    height: 35px;
+    width: 35px;
+    line-height: 30px;
+    font-size: 25px;
+    top: 12px;
+    left: 12px;
+    color: white;
+}
+
+body {
+    background-color: black;
+    margin: 0px;
+}
+
+#settings:hover {
+    background-color:silver;
+}
 
 
