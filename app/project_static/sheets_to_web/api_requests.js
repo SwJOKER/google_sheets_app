@@ -34,7 +34,7 @@
     }
 
     async function updatePage(){
-        let saved_valute_settings = getCookie('valute')
+        let savedValuteSettings = getCookie('valute')
         const sheet = await getFullSheet()
         let currentOrders = []
         let actualOrders = {}
@@ -42,7 +42,7 @@
         // defined in template
         TOTAL_USD = sheet.total_usd.toFixed(2)
         TOTAL_RUBLE = sheet.total_ruble.toFixed(2)
-        if(saved_valute_settings == 'ruble') {
+        if(savedValuteSettings == 'ruble') {
              total_cost.innerHTML = '₽' + TOTAL_RUBLE
         } else {
              total_cost.innerHTML = '$' + TOTAL_USD
@@ -88,7 +88,9 @@
 
     async function updateData(lastMD5) {
         const { md5 } = await statusRequest();
-
+        if ($('table').length == 0){
+            await Promise.all([ location.reload(), timeout(2000) ]);
+        }
         if (lastMD5 != md5) {
             await updatePage();
         }
@@ -104,17 +106,27 @@
     }
 
     function init_valute() {
-        let saved_valute_settings = getCookie('valute')
-        if (saved_valute_settings == undefined) {
+        let savedValuteSettings = getCookie('valute')
+        if (savedValuteSettings == undefined) {
             document.cookie = "valute=usd"
-            saved_valute_settings = getCookie('valute')
+            savedValuteSettings = getCookie('valute')
         }
-        if (saved_valute_settings == 'usd') {
-            total_cost.innerHTML = '$' + TOTAL_USD
-            settings.innerHTML = '$'
+        let valuteLetter
+        if (savedValuteSettings == 'usd') {
+            let valute_sign = '$'
+            settings.innerHTML = valute_sign
+            if (parseFloat(TOTAL_USD)) {
+                total_cost.innerHTML = valute_sign + TOTAL_USD
+            }
         } else {
-            settings.innerHTML = '₽'
-            total_cost.innerHTML = '₽' + TOTAL_RUBLE
+            let valute_sign = '₽'
+            settings.innerHTML = valute_sign
+            if (parseFloat(TOTAL_RUBLE)) {
+                total_cost.innerHTML = valute_sign + TOTAL_RUBLE
+            }
+        }
+        if (!total_cost.innerHTML) {
+            total_cost.innerHTML = 'Wait'
         }
     }
 
@@ -144,7 +156,8 @@
                 const [md5] = await Promise.all([ updateData(lastMD5), timeout(2000) ]);
                 lastMD5 = md5;
             } catch(e) {
-                console.error('Somthing went wrong', e);
+                console.info('Something went wrong', e);
+                await Promise.all([Promise.resolve(), timeout(2000) ]);
             }
         }
     }
