@@ -34,7 +34,7 @@
     }
 
     async function updatePage(){
-        console.log('udate')
+        let saved_valute_settings = getCookie('valute')
         const sheet = await getFullSheet()
         let currentOrders = []
         let actualOrders = {}
@@ -42,6 +42,11 @@
         // defined in template
         TOTAL_USD = sheet.total_usd.toFixed(2)
         TOTAL_RUBLE = sheet.total_ruble.toFixed(2)
+        if(saved_valute_settings == 'ruble') {
+             total_cost.innerHTML = '₽' + TOTAL_RUBLE
+        } else {
+             total_cost.innerHTML = '$' + TOTAL_USD
+        }
         $('table').find('tr:not(:first-of-type)').each(function(){ if (this.id) {currentOrders.push(Number(this.id))}})
 
         orders.forEach(function(order){
@@ -138,7 +143,6 @@
             try {
                 const [md5] = await Promise.all([ updateData(lastMD5), timeout(2000) ]);
                 lastMD5 = md5;
-                console.log('start')
             } catch(e) {
                 console.error('Somthing went wrong', e);
             }
