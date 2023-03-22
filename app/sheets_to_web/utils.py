@@ -15,7 +15,6 @@ def get_sheet_records_md5(records):
 
 def get_aware_update_time(sheet: Spreadsheet):
     return timezone.datetime.fromisoformat(sheet.updated[:-1]).astimezone(timezone.get_default_timezone())
-    # timezone.datetime.fromisoformat(sheet.updated[:-1])
 
 
 def str_to_date(value):

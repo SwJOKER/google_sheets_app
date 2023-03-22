@@ -10,8 +10,8 @@ router.register(r'sheets', SheetViewSet, basename='sheets')
 
 urlpatterns = [
     path('', RedirectView.as_view(url='/sheet/')),
-    path('sheet/<key>/', SheetDetailView.as_view(), name='sheet_detail'),
-    path('sheet/', SheetsListView.as_view(), name='sheets_list'),
+    path('sheets/<key>/', SheetDetailView.as_view(), name='sheet_detail'),
+    path('sheets/', SheetsListView.as_view(), name='sheets_list'),
     path('api/', include(router.urls)),
     path('', index),
 ]

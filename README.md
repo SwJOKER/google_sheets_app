@@ -44,7 +44,7 @@ Document example:
 https://docs.google.com/spreadsheets/d/13nUkBwlXYGmDmYUkkhAgkA_v8mxeh9H9ePp5NkKiDXY
 
 # like 
-http://localhost:8000/sheet/13nUkBwlXYGmDmYUkkhAgkA_v8mxeh9H9ePp5NkKiDXY/
+http://localhost:8000/sheets/13nUkBwlXYGmDmYUkkhAgkA_v8mxeh9H9ePp5NkKiDXY/
 
 # In this case key is:
 13nUkBwlXYGmDmYUkkhAgkA_v8mxeh9H9ePp5NkKiDXY
@@ -53,6 +53,10 @@ http://localhost:8000/sheet/13nUkBwlXYGmDmYUkkhAgkA_v8mxeh9H9ePp5NkKiDXY/
 Key will checked for length. If not permissions to access it will not be created. 
 If all ok you can reload page little bit later and see your doc.
 
+Sheets list address:
+```
+http://localhost:8000/sheets/
+```
 ## Telegram
 For subscribe for notifications you need send start command in chat with bot.
 ```
