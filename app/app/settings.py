@@ -154,7 +154,7 @@ CACHES = {
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient"
         }
-    }
+    },
 }
 
 REST_FRAMEWORK = {

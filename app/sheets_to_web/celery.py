@@ -22,6 +22,9 @@ app.config_from_object('django.conf:settings', namespace='CELERY')
 
 app.autodiscover_tasks()
 
+expired_sheets_cache = 'expired_sheets_keys'
+expired_orders_prefix = 'expired_'
+
 
 @signals.worker_ready.connect
 def on_start(**kwargs):
@@ -62,19 +65,18 @@ class SheetTask(Task):
 @app.task
 def check_delivery_date():
     from .models import Sheet, Order
-
     expired_sheets_keys = list()
     prefetch_current_orders = Prefetch('orders', queryset=Order.objects.filter(archieved=False))
     sheets = Sheet.objects.filter(available=True).prefetch_related(prefetch_current_orders)
     for sheet in sheets:
         # delivery status updates in telegram worker on sending notificates
-        expired = [order.order_index for order in sheet.orders.all()
+        expired_orders_list = [order.order_index for order in sheet.orders.all()
                    if order.delivery_date < timezone.now().date() and not order.delivery_expired]
         # Store pks of sheets and orders in redis cache for notificate
-        if expired:
-            cache.set(f'expired_{sheet.key}', expired, 60 * 60 * 3)
+        if expired_orders_list:
+            cache.set(expired_orders_prefix + sheet.key, expired_orders_list, 60 * 60 * 3)
             expired_sheets_keys.append(sheet.key)
-    cache.set('expired_sheets_keys', expired_sheets_keys, 60 * 60 * 3)
+    cache.set(expired_sheets_cache, expired_sheets_keys, 60 * 60 * 3)
 
 
 # calls when Sheet model object saved

@@ -9,6 +9,7 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from django.conf import settings
+from .celery import expired_orders_prefix, expired_sheets_cache
 
 router = Router()
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'app.settings')
@@ -82,12 +83,12 @@ async def send_notify_main():
 
     while True:
         await asyncio.sleep(5)
-        keys = await sync_to_async(cache.get)('expired_sheets_keys')
+        keys = await sync_to_async(cache.get)(expired_sheets_cache)
         if keys:
             expired_orders_full = list()
             sheets = await sync_to_async(Sheet.objects.filter)(key__in=keys)
             async for sheet in sheets:
-                expired_orders_numbers = await sync_to_async(cache.get)(f'expired_{sheet.key}')
+                expired_orders_numbers = await sync_to_async(cache.get)(expired_orders_prefix + sheet.key)
                 expired_orders_full.extend(expired_orders_numbers)
     # There is a way to make clever bot with capacity choosing sheets for subscribe
     # async for subscriber in sheet.subscribers.all():
@@ -98,11 +99,11 @@ async def send_notify_main():
                            f'Next orders delivery expired:\n' \
                            f'{expired_orders_numbers}'
                     await send_message(channel_id=subscriber.chat_id, text=text)
-                await sync_to_async(cache.delete)(f'expired_{sheet.key}')
+                await sync_to_async(cache.delete)(expired_orders_prefix + sheet.key)
             # update orders delivery status
             await sync_to_async(Order.objects.filter(order_index__in=expired_orders_full).update)(
                 delivery_expired=True)
-            await sync_to_async(cache.delete)('expired_sheets_keys')
+            await sync_to_async(cache.delete)(expired_sheets_cache)
 
 
 async def telegram_main():
