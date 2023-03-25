@@ -19,9 +19,13 @@ def get_aware_update_time(sheet: Spreadsheet):
 
 def str_to_date(value):
     try:
-        return datetime.strptime(value, '%d.%m.%Y')
+        return datetime.strptime(value, '%d.%m.%Y').date()
     except TypeError:
         return str(value)
+
+
+def to_db_formats(order_data: tuple):
+    return order_data[0], order_data[1], Decimal(order_data[2]).quantize(Decimal('1.00')), str_to_date(order_data[3])
 
 
 def request_dollar_course():

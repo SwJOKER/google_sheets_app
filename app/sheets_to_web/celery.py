@@ -1,4 +1,3 @@
-import logging
 import os
 from _decimal import Decimal
 
@@ -12,7 +11,9 @@ from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.db.models import Prefetch
 from django.utils import timezone
-from .utils import get_sheet_records_md5, str_to_date, request_dollar_course, get_aware_update_time
+from .utils import get_sheet_records_md5, request_dollar_course, get_aware_update_time, to_db_formats
+from celery.utils.log import get_task_logger
+
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'app.settings')
 
@@ -25,16 +26,17 @@ app.autodiscover_tasks()
 expired_sheets_cache = 'expired_sheets_keys'
 expired_orders_prefix = 'expired_'
 
+logger = get_task_logger(__name__)
+
 
 @signals.worker_ready.connect
 def on_start(**kwargs):
-    get_dollar_course.s()
+    get_dollar_course.s(force=True)()
 
 
 @app.on_after_configure.connect
 def setup_periodic_tasks(sender, **kwargs):
     sender.add_periodic_task(10.0, start_update_sheets.s(), name='Update data from sheets')
-
     if settings.DEBUG:
         sender.add_periodic_task(30.0, check_delivery_date.s(), name='Delivery notifications debug mode')
     else:
@@ -58,6 +60,7 @@ class SheetTask(Task):
     @property
     def client(self):
         if self._client is None:
+            logger.info('Google API client setted up')
             self._client = pygsheets.authorize(service_file=settings.SHEETS_JSON_KEY)
         return self._client
 
@@ -65,6 +68,7 @@ class SheetTask(Task):
 @app.task
 def check_delivery_date():
     from .models import Sheet, Order
+
     expired_sheets_keys = list()
     prefetch_current_orders = Prefetch('orders', queryset=Order.objects.filter(archieved=False))
     sheets = Sheet.objects.filter(available=True).prefetch_related(prefetch_current_orders)
@@ -74,9 +78,12 @@ def check_delivery_date():
                    if order.delivery_date < timezone.now().date() and not order.delivery_expired]
         # Store pks of sheets and orders in redis cache for notificate
         if expired_orders_list:
-            cache.set(expired_orders_prefix + sheet.key, expired_orders_list, 60 * 60 * 3)
+            cache_key = expired_orders_prefix + sheet.key
+            logger.debug(f'Sheet {sheet.key}: found expired orders. Store in cache key: {cache_key}')
+            cache.set(cache_key, expired_orders_list, 60 * 60 * 3)
             expired_sheets_keys.append(sheet.key)
-    cache.set(expired_sheets_cache, expired_sheets_keys, 60 * 60 * 3)
+    if expired_sheets_keys:
+        cache.set(expired_sheets_cache, expired_sheets_keys, 60 * 60 * 3)
 
 
 # calls when Sheet model object saved
@@ -91,9 +98,10 @@ def check_sheet_availability(self, sheet_key):
         sheet.name = ws.title
         sheet.available = True
         sheet.save(from_task=True)
+        logger.debug(f'Sheet {sheet_key} is available and added to DB')
     except googleapiclient.errors.HttpError:
         sheet.delete()
-        print('Sheet is not available')
+        logger.debug(f'Sheet {sheet_key} is unavailable')
 
 
 # store course to redis cache
@@ -102,8 +110,10 @@ def check_sheet_availability(self, sheet_key):
 @app.task
 def get_dollar_course(force=False):
     if not force and cache.get('dollar_course'):
+        logger.debug('USD course get form cache')
         return cache.get('dollar_course')
     else:
+        logger.debug('USD course get from API')
         course = request_dollar_course()
         cache.set('dollar_course', course, 60 * 60 * 24)
         return course
@@ -136,7 +146,7 @@ class UpdateSheetDBTask(SheetTask):
         self._worksheet_records = self._worksheet.get_all_records()
         self._last_update_time = get_aware_update_time(self._spreadsheet)
         self._md5 = get_sheet_records_md5(self._worksheet_records)
-        self._sheet_data_dict = {tuple(r.values())[1]: tuple(r.values()) for r in self._worksheet_records
+        self._sheet_data_dict = {tuple(r.values())[1]: to_db_formats(tuple(r.values())) for r in self._worksheet_records
                                  if all(r.values())}
         self._actual_orders_id_list = list(self._sheet_data_dict.keys())
         actual_orders = Prefetch('orders', queryset=Order.objects.filter(order_index__in=self._actual_orders_id_list))
@@ -144,6 +154,7 @@ class UpdateSheetDBTask(SheetTask):
         self._errors_objects = list()
 
     def start(self, sheet_key, only_checksum=True):
+        logger.debug(f'Start update sheet {sheet_key}')
         self.init_sheet(sheet_key)
         if not only_checksum:
             changed = self.have_updates_by_time()
@@ -193,7 +204,7 @@ class UpdateSheetDBTask(SheetTask):
                 order.archieved = False
                 order.row_index = order_data[0]
                 order.cost = order_data[2]
-                order.delivery_date = str_to_date(order_data[3])
+                order.delivery_date = order_data[3]
                 cost_ruble = Decimal(order.cost * self._dollar_course).quantize(Decimal('1.00'))
                 order.cost_ruble = cost_ruble
                 try:
@@ -203,6 +214,7 @@ class UpdateSheetDBTask(SheetTask):
                     self._errors_objects.append(SheetError(sheet=self._sheet,
                                                            error_text=f'Order {order.order_index}: {e.messages}'))
         Order.objects.bulk_update(update_objs, fields=['archieved', 'row_index', 'cost', 'delivery_date'])
+        logger.debug(f'{len(update_objs)} orders updated')
 
     def create_orders(self):
         from .models import SheetError, Order
@@ -215,7 +227,7 @@ class UpdateSheetDBTask(SheetTask):
             # make dict with pairs attribute:value
             kwargs_for_order = dict(zip(fields_in_tuple, new_order_data))
             # convert date string in tuple to date format
-            kwargs_for_order['delivery_date'] = str_to_date(new_order_data[3])
+            kwargs_for_order['delivery_date'] = new_order_data[3]
             kwargs_for_order['sheet'] = self._sheet
             cost_ruble = Decimal(new_order_data[2] * self._dollar_course).quantize(Decimal('1.00'))
             new_order = Order(cost_ruble=cost_ruble, **kwargs_for_order)
@@ -225,13 +237,15 @@ class UpdateSheetDBTask(SheetTask):
             except ValidationError as e:
                 self._errors_objects.append(SheetError(sheet=self._sheet, error_text=e.messages))
         Order.objects.bulk_create(create_objs)
+        logger.debug(f'{len(create_objs)} orders created')
 
     def archieve_orders(self):
         from .models import Order
 
-        Order.objects.filter(sheet=self._sheet).exclude(order_index__in=self._actual_orders_id_list)\
-                                               .exclude(archieved=True)\
-                                               .update(archieved=True)
+        archieved_orders = Order.objects.filter(sheet=self._sheet).exclude(order_index__in=self._actual_orders_id_list)\
+                                               .exclude(archieved=True)
+        logger.debug(f'{archieved_orders.count()} orders archieved')
+        archieved_orders.update(archieved=True)
 
     def save_errors(self):
         from .models import SheetError
